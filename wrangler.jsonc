@@ -8,6 +8,7 @@
 	"main": "src/index.ts",
 	"compatibility_date": "2025-03-10",
 	"compatibility_flags": ["nodejs_compat"],
+	"account_id": "3cd5964ac30d530dd663a969476c8eaf",
 	"migrations": [
 		{
 			"new_sqlite_classes": ["MyMCP"],
@@ -17,10 +18,14 @@
 	"durable_objects": {
 		"bindings": [
 			{
+				"name": "MCP_OBJECT",
 				"class_name": "MyMCP",
-				"name": "MCP_OBJECT"
+				"script_name": "remote-mcp-server-authless-chat-with-cal"
 			}
 		]
+	},
+	"ai": {
+		"binding": "AI"
 	},
 	"observability": {
 		"enabled": true
