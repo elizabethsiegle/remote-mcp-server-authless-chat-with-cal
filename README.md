@@ -36,6 +36,8 @@ We need to activate the [Google Calendar API](https://developers.google.com/cale
 
 ## Share your GCal w/ the Google Storage Account Email
 In your Google Calendar, click <em>settings</em>, then <em>Settings menu</em>, then under <em>Settings for my calendars</em> select the calendar you want to share. Click <em>+ Add people and groups</em> and type in your storage account email. Give them permission to "Make changes and manage sharing." 
+<img width="675" alt="Share GCal with Google Storage Email and give them read/write permissions" src="https://github.com/user-attachments/assets/3579725b-5d8f-42e9-9d1b-255dca6c9b4e" />
+
 
 
 ## Customizing your MCP Server
