@@ -1,4 +1,4 @@
-# Building a Remote MCP Server on Cloudflare (Without Auth)
+# Build a Remote MCP Server on Cloudflare (Without Auth) to Query + Write to Google Calendar
 
 This example allows you to deploy a remote MCP server giving your MCP client access to your Google Calendar that doesn't require authentication on Cloudflare Workers.
 
