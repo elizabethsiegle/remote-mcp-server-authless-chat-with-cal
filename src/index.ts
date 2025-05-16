@@ -59,7 +59,7 @@ export class MyMCP extends McpAgent {
                     const dateRangePrompt = `Given the query "${query}", todays date is ${new Date().toISOString()}, and it is a ${this.toDayString(new Date())} determine the start and end dates to search for calendar events. 
                     Return ONLY a JSON object with two ISO date strings: startDate and endDate.
                     Example: {"startDate": "2024-03-15T00:00:00Z", "endDate": "2024-03-17T23:59:59Z"}
-                    Today's date is ${new Date().toISOString()}
+                    Today's date is ${new Date().toISOString()} and with dates at the start and end of a day pacific
 					DO NOT INCLUDE ANY OTHER TEXT BESIDES VALID JSON`;
 
                     const dateRangeMessages = [
@@ -77,10 +77,10 @@ export class MyMCP extends McpAgent {
                         throw new Error("Could not parse date range from LLM response");
                     }
                     const dateRange = {
-						startDate: new Date(jsonMatch.startDate),
-						endDate: new Date(jsonMatch.endDate)
-					}
-					console.log("date match:", dateRange);
+                        startDate: new Date(new Date(jsonMatch.startDate).getTime() - (7 * 60 * 60 * 1000)), // PST from UTC 
+                        endDate: new Date(new Date(jsonMatch.endDate).getTime() - (7 * 60 * 60 * 1000)) // PST from UTC
+                    }
+                    console.log("date match:", dateRange);
 					
 
                     const { GoogleAuth } = await import('google-auth-library');
