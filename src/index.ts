@@ -17,7 +17,7 @@ function getEnv<Env>() {
 
 export class MyMCP extends McpAgent {
     server = new McpServer({
-        name: "Google Calendar DataFrame Clone",
+        name: "Google Calendar Query",
         version: "2.0.0",
     });
 
@@ -125,12 +125,12 @@ export class MyMCP extends McpAgent {
 
                     const response = await calendar.events.list({
                         calendarId: emails[0] || 'primary',
-                        timeMin: dateRange.startDate,
-                        timeMax: dateRange.endDate,
+                        timeMin: dateRange.startDate.toISOString(),
+                        timeMax: dateRange.endDate.toISOString(),
                         maxResults: 50,
                         singleEvents: true,
                         orderBy: 'startTime',
-                    });
+                    } as const);
 
                     const df = (response.data.items || []).map(item => {
                         const start = item.start?.dateTime || item.start?.date;
@@ -211,6 +211,120 @@ export class MyMCP extends McpAgent {
                     const errorMessage = error instanceof Error ? error.message : String(error);
                     return {
                         content: [{ type: "text" as const, text: `❌ Error querying calendar: ${errorMessage}` }]
+                    };
+                }
+            }
+        );
+
+        this.server.tool(
+            "create_calendar_event",
+            "Create a new calendar event",
+            {
+                name: z.string().describe("Name/title of the event"),
+                date: z.string().describe("Date of the event in YYYY-MM-DD format"),
+                time: z.string().describe("Time of the event in HH:MM format (24-hour)"),
+                location: z.string().optional().describe("Location of the event (optional)")
+            },
+            async ({ name, date, time, location }) => {
+                try {
+                    const env = getEnv<Env>();
+
+                    // First LLM call to parse and validate time
+                    const timePrompt = `Convert the time "${time}" to 24-hour format (HH:MM).
+                    IMPORTANT: Return ONLY a JSON object with a single field "time" in HH:MM format.
+                    Example: {"time": "14:30"}
+                    DO NOT include any explanation or thinking process.
+                    DO NOT include any other text besides the JSON object.`;
+
+                    const timeMessages = [
+                        { role: "system", content: "You are a time format converter. Return ONLY valid JSON with time in HH:MM format and nothing else or else you will be fired and fined a lot of money. No explanations or other text." },
+                        { role: "user", content: timePrompt }
+                    ];
+
+                    const timeResponse = await env.AI.run("@cf/meta/llama-4-scout-17b-16e-instruct", { messages: timeMessages });
+                    console.log("Raw time response:", timeResponse);
+                    
+                    let timeMatch;
+                    try {
+                        const responseText = typeof timeResponse === 'string' ? timeResponse : timeResponse.response;
+                        console.log("Response text:", responseText);
+                        // Extract JSON from the response if it contains other text
+                        const jsonMatch = responseText.match(/\{.*\}/);
+                        if (!jsonMatch) {
+                            throw new Error("No JSON found in response");
+                        }
+                        timeMatch = JSON.parse(jsonMatch[0]);
+                        console.log("Time match:", timeMatch);
+                    } catch (e) {
+                        console.error("Error handling time response:", e);
+                        throw new Error("Failed to process time response");
+                    }
+
+                    if (!timeMatch || !timeMatch.time) {
+                        throw new Error("Invalid time format in response");
+                    }
+
+                    const { GoogleAuth } = await import('google-auth-library');
+                    const { google } = await import('googleapis');
+
+                    let privateKey = env.GOOGLE_PRIVATE_KEY;
+                    if (privateKey.includes('\\n')) {
+                        privateKey = privateKey.replace(/\\n/g, '\n');
+                    }
+                    if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+                        privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
+                    }
+
+                    const auth = new GoogleAuth({
+                        credentials: {
+                            client_email: env.GOOGLE_CLIENT_EMAIL,
+                            private_key: privateKey
+                        },
+                        scopes: ['https://www.googleapis.com/auth/calendar'],
+                    });
+
+                    const calendar = google.calendar({ version: 'v3', auth });
+
+                    // Parse date and time
+                    const [year, month, day] = date.split('-').map(Number);
+                    const [hours, minutes] = timeMatch.time.split(':').map(Number);
+                    
+                    // Create start and end times (default to 1 hour duration)
+                    const startTime = new Date(year, month - 1, day, hours, minutes);
+                    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // Add 1 hour
+
+                    // Create the event
+                    const event = {
+                        summary: name,
+                        start: {
+                            dateTime: startTime.toISOString(),
+                            timeZone: 'America/Los_Angeles',
+                        },
+                        end: {
+                            dateTime: endTime.toISOString(),
+                            timeZone: 'America/Los_Angeles',
+                        },
+                        ...(location && { location }),
+                    };
+
+                    const response = await calendar.events.insert({
+                        calendarId: env.GOOGLE_CALENDAR_ID,
+                        requestBody: event,
+                    });
+
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: `✅ Created event "${name}" on ${date} at ${time}${location ? ` at ${location}` : ''}`
+                            }
+                        ]
+                    };
+
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    return {
+                        content: [{ type: "text" as const, text: `❌ Error creating calendar event: ${errorMessage}` }]
                     };
                 }
             }
