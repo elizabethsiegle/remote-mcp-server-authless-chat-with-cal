@@ -5,9 +5,9 @@ import { env } from 'cloudflare:workers';
 
 export interface Env {
   AI: Ai;
-  GOOGLE_CLIENT_EMAIL: string;
-  GOOGLE_PRIVATE_KEY: string;
-  GOOGLE_CALENDAR_ID: string;
+  GOOGLE_CLIENT_EMAIL: string; // service account email
+  GOOGLE_PRIVATE_KEY: string; // https://console.cloud.google.com/iam-admin/serviceaccounts -> service account -> keys -> add key -> create new key -> JSON -> get private key from JSON
+  GOOGLE_CALENDAR_ID: string; //email of calendar to query ie lizzie.siegle@gmail.com
 }
 
 function getEnv<Env>() {
@@ -105,7 +105,7 @@ export class MyMCP extends McpAgent {
                     const calendar = google.calendar({ version: 'v3', auth });
 
                     // Step 1: Subscribe to new shared calendars
-                    const newEmails = ["lizzie.siegle@gmail.com"];
+                    const newEmails = [env.GOOGLE_CALENDAR_ID];
                     for (const email of newEmails) {
                         await calendar.calendarList.insert({ requestBody: { id: email } });
                         console.log(`Subscribed to calendar: ${email}`);
@@ -152,29 +152,29 @@ export class MyMCP extends McpAgent {
 
                     // Build context for LLM
                     const eventsContext = df.map(event => `
-Event: ${event.name}
-Time: ${new Date(event.start).toLocaleString()} - ${new Date(event.end).toLocaleString()}
-Location: ${event.location || 'No location specified'}
-Duration: ${event.duration}
-Attendees: ${event.attendees.length > 0 ? event.attendees.map(a => a.email).join(', ') : 'No attendees'}
+						Event: ${event.name}
+						Time: ${new Date(event.start).toLocaleString()} - ${new Date(event.end).toLocaleString()}
+						Location: ${event.location || 'No location specified'}
+						Duration: ${event.duration}
+						Attendees: ${event.attendees.length > 0 ? event.attendees.map(a => a.email).join(', ') : 'No attendees'}
                     `).join('\n');
 
                     // Second LLM call to summarize events
                     const summaryPrompt = `I searched the calendar for "${query}" and found these events between ${new Date(dateRange.startDate).toLocaleDateString()} and ${new Date(dateRange.endDate).toLocaleDateString()}:
-${eventsContext}
+					${eventsContext}
 
-Please provide a natural language summary of these events. Focus on:
-1. The most important or upcoming events
-2. Any patterns or clusters of events
-3. Highlight any events with specific locations or many attendees
-4. Mention the total number of events found
-5. Do not mention past events unless relevant to the query
-6. Today's date is ${new Date().toDateString()}
+					Please provide a natural language summary of these events. Focus on:
+					1. The most important or upcoming events
+					2. Any patterns or clusters of events
+					3. Highlight any events with specific locations or many attendees
+					4. Mention the total number of events found
+					5. Do not mention past events unless relevant to the query
+					6. Today's date is ${new Date().toDateString()}
 
-Format the response in a friendly, conversational way. Keep the response concise and under 200 words.`;
+					Format the response in a friendly, conversational way. Keep the response concise and under 200 words.`;
 
                     const summaryMessages = [
-                        { role: "system", content: "You are a helpful calendar assistant that provides clear, concise summaries of calendar events. Focus on making the information easily digestible and highlighting the most relevant details. Keep responses brief and to the point." },
+                        { role: "system", content: "You are a helpful calendar assistant that provides clear, concise summaries of calendar events. Focus on making the information easily digestible and highlighting the most relevant details. Keep responses brief and under 100 words." },
                         { role: "user", content: summaryPrompt }
                     ];
 

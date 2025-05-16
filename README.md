@@ -1,6 +1,6 @@
 # Building a Remote MCP Server on Cloudflare (Without Auth)
 
-This example allows you to deploy a remote MCP server that doesn't require authentication on Cloudflare Workers. 
+This example allows you to deploy a remote MCP server giving your MCP client access to your Google Calendar that doesn't require authentication on Cloudflare Workers. 
 
 ## Get started: 
 
@@ -12,6 +12,23 @@ Alternatively, you can use the command line below to get the remote MCP Server c
 ```bash
 npm create cloudflare@latest -- my-mcp-server --template=cloudflare/ai/demos/remote-mcp-authless
 ```
+
+## Setup Google Calendar API
+Create a [Google Service account here](https://console.cloud.google.com/iam-admin/serviceaccounts) if you haven't already.
+
+On the [service accounts page](https://console.cloud.google.com/iam-admin/serviceaccounts), select your service account and then click <strong>Keys</strong> -> click <strong>add key</strong> -> click <strong>create new key</strong>, select <strong>JSON</strong> as the key type, and finally click <strong>get private key from JSON</strong>. Open that JSON file and select the string corresponding to private key.
+
+Add it and the following variables to your <em>.dev.vars</em> file like so:
+
+```json
+GOOGLE_CLIENT_EMAIL="REPLACE-WITH-YOUR-service account email" 
+GOOGLE_CALENDAR_ID="REPLACE-WITH-THE-GMAIL-ACCOUNT-OF-THE-CALENDAR-YOU-WANT-TO-QUERY"
+GOOGLE_PRIVATE_KEY="REPLACE-WITH-PRIVATE-KEY" 
+```
+<em>.dev.vars</em> is for local texting. To deploy your secrets to your deployed Cloudflare Worker/MCP server, run `npx wrangler secret put GOOGLE_CLIENT_EMAIL`, click <strong>enter</strong>, and type in your google_client_email. Do that for each secret.
+
+We need to activate the [Google Calendar API](https://developers.google.com/calendar/api/guides/overview) for a Google Cloud project of our choice (ie Google Calendar API). Use an existing project or create a new one: At the top of the [Google Cloud Console dashboard](https://console.cloud.google.com/), click on the project selection and “New Project”, enter a name e.g. “chat-with-calendar-mcp" and click “Create”. Then, in the [Google API dashboard](https://console.developers.google.com/), click <em>Enable APIs and services</em>. Search for the Google Calendar API and click <em>Enable</em>.
+
 
 ## Customizing your MCP Server
 
