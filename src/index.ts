@@ -16,7 +16,7 @@ function getEnv<Env>() {
 
 
 export class MyMCP extends McpAgent {
-    server = new McpServer({
+	server = new McpServer({
         name: "Google Calendar Query",
         version: "2.0.0",
     });
@@ -42,10 +42,8 @@ export class MyMCP extends McpAgent {
 		}
 	}
 
-    async init() {
-        console.log("Initializing MCP server...");
-
-        this.server.tool(
+	async init() {
+		this.server.tool(
             "query_google_calendar",
             "Query Google Calendar events and shape data",
             {
@@ -77,8 +75,8 @@ export class MyMCP extends McpAgent {
                         throw new Error("Could not parse date range from LLM response");
                     }
                     const dateRange = {
-                        startDate: new Date(new Date(jsonMatch.startDate).getTime() - (7 * 60 * 60 * 1000)), // PST from UTC 
-                        endDate: new Date(new Date(jsonMatch.endDate).getTime() - (7 * 60 * 60 * 1000)) // PST from UTC
+                        startDate: new Date(new Date(jsonMatch.startDate).getTime()), // PST from UTC 
+                        endDate: new Date(new Date(jsonMatch.endDate).getTime()) // PST from UTC
                     }
                     console.log("date match:", dateRange);
 					
@@ -136,27 +134,45 @@ export class MyMCP extends McpAgent {
                         const start = item.start?.dateTime || item.start?.date;
                         const end = item.end?.dateTime || item.end?.date;
 
+                        // Convert UTC to PST (UTC-7)
+                        const startDate = start ? new Date(start) : null;
+                        const endDate = end ? new Date(end) : null;
+
+                        // Format the dates in PST
+                        const formatDate = (date: Date) => {
+                            return date.toLocaleString('en-US', {
+                                timeZone: 'America/Los_Angeles',
+                                year: 'numeric',
+                                month: 'numeric',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: 'numeric',
+                                hour12: true
+                            });
+                        };
+
                         return {
                             name: item.summary || 'No title',
                             creator: item.creator?.email || '',
-                            start: start ? new Date(start).toISOString() : '',
-                            end: end ? new Date(end).toISOString() : '',
+                            start: startDate ? formatDate(startDate) : '',
+                            end: endDate ? formatDate(endDate) : '',
                             attendees: item.attendees || [],
                             location: item.location || '',
                             queried_from: emails[0],
                             id: item.id,
-                            timeZone: item.start?.timeZone || 'Europe/Berlin',
-                            duration: start && end ? (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60) + ' mins' : ''
+                            timeZone: 'America/Los_Angeles',
+                            duration: startDate && endDate ? 
+                                Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60)) + ' mins' : ''
                         };
                     });
 
                     // Build context for LLM
                     const eventsContext = df.map(event => `
-						Event: ${event.name}
-						Time: ${new Date(event.start).toLocaleString()} - ${new Date(event.end).toLocaleString()}
-						Location: ${event.location || 'No location specified'}
-						Duration: ${event.duration}
-						Attendees: ${event.attendees.length > 0 ? event.attendees.map(a => a.email).join(', ') : 'No attendees'}
+                        Event: ${event.name}
+                        Time: ${event.start} - ${event.end}
+                        Location: ${event.location || 'No location specified'}
+                        Duration: ${event.duration}
+                        Attendees: ${event.attendees.length > 0 ? event.attendees.map(a => a.email).join(', ') : 'No attendees'}
                     `).join('\n');
 
                     // Second LLM call to summarize events
@@ -164,11 +180,11 @@ export class MyMCP extends McpAgent {
 					${eventsContext}
 
 					Please provide a natural language summary of these events. Focus on:
-					1. The most important or upcoming events
+					1. The most important or upcoming events prioritizing the time period of the query
 					2. Any patterns or clusters of events
 					3. Highlight any events with specific locations or many attendees
 					4. Mention the total number of events found
-					5. Do not mention past events unless relevant to the query
+					5. Do not mention events unless relevant to the query
 					6. Today's date is ${new Date().toDateString()}
 
 					Format the response in a friendly, conversational way. Keep the response concise and under 200 words.`;
@@ -186,11 +202,16 @@ export class MyMCP extends McpAgent {
                             )
                         ]);
 
+                        // Extract the text response from the LLM output
+                        const responseText = typeof llmResponse === 'string' ? 
+                            llmResponse : 
+                            (llmResponse.response?.toString() || JSON.stringify(llmResponse));
+
                         return {
                             content: [
                                 {
                                     type: "text",
-                                    text: typeof llmResponse === 'string' ? llmResponse : JSON.stringify(llmResponse)
+                                    text: responseText
                                 }
                             ]
                         };
@@ -216,7 +237,7 @@ export class MyMCP extends McpAgent {
             }
         );
 
-        this.server.tool(
+		this.server.tool(
             "create_calendar_event",
             "Create a new calendar event",
             {
@@ -264,9 +285,9 @@ export class MyMCP extends McpAgent {
                         throw new Error("Invalid time format in response");
                     }
 
-                    const { GoogleAuth } = await import('google-auth-library');
-                    const { google } = await import('googleapis');
-
+				const { GoogleAuth } = await import('google-auth-library');
+				const { google } = await import('googleapis');
+		  
                     let privateKey = env.GOOGLE_PRIVATE_KEY;
                     if (privateKey.includes('\\n')) {
                         privateKey = privateKey.replace(/\\n/g, '\n');
@@ -275,16 +296,16 @@ export class MyMCP extends McpAgent {
                         privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
                     }
 
-                    const auth = new GoogleAuth({
+				const auth = new GoogleAuth({
                         credentials: {
                             client_email: env.GOOGLE_CLIENT_EMAIL,
                             private_key: privateKey
                         },
                         scopes: ['https://www.googleapis.com/auth/calendar'],
-                    });
-
-                    const calendar = google.calendar({ version: 'v3', auth });
-
+				});
+		  
+				const calendar = google.calendar({ version: 'v3', auth });
+		  
                     // Parse date and time
                     const [year, month, day] = date.split('-').map(Number);
                     const [hours, minutes] = timeMatch.time.split(':').map(Number);
@@ -312,7 +333,7 @@ export class MyMCP extends McpAgent {
                         requestBody: event,
                     });
 
-                    return {
+				  return {
                         content: [
                             {
                                 type: "text",
@@ -321,31 +342,274 @@ export class MyMCP extends McpAgent {
                         ]
                     };
 
+			  } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+				return {
+                        content: [{ type: "text" as const, text: `❌ Error creating calendar event: ${errorMessage}` }]
+				};
+			  }
+			}
+		);
+        this.server.tool(
+            "remove_calendar_event",
+            "Remove a calendar event by event name/summary and optional date. Deletes the first match.",
+            {
+                query: z.string().describe("Event name or summary to search for (required)"),
+                date: z.string().optional().describe("Date of the event in YYYY-MM-DD format (optional)")
+            },
+            async ({ query, date }) => {
+                try {
+                    const env = getEnv<Env>();
+                    const { GoogleAuth } = await import('google-auth-library');
+                    const { google } = await import('googleapis');
+
+                    let privateKey = env.GOOGLE_PRIVATE_KEY;
+                    if (privateKey.includes('\\n')) {
+                        privateKey = privateKey.replace(/\\n/g, '\n');
+                    }
+                    if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+                        privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
+                    }
+
+                    const auth = new GoogleAuth({
+                        credentials: {
+                            client_email: env.GOOGLE_CLIENT_EMAIL,
+                            private_key: privateKey
+                        },
+                        scopes: ['https://www.googleapis.com/auth/calendar'],
+                    });
+
+                    const calendar = google.calendar({ version: 'v3', auth });
+
+                    // Calculate timeMin/timeMax
+                    let timeMin, timeMax;
+                    if (date) {
+                        // If a date is provided, search only that day in America/Los_Angeles
+                        const tz = 'America/Los_Angeles';
+                        const d = new Date(`${date}T00:00:00-07:00`); // -07:00 for PDT
+                        timeMin = new Date(d).toISOString();
+                        const endOfDay = new Date(d);
+                        endOfDay.setHours(23, 59, 59, 999);
+                        timeMax = endOfDay.toISOString();
+                    } else {
+                        // Default: search from start of this week to end of next week in America/Los_Angeles
+                        const now = new Date();
+                        const tz = 'America/Los_Angeles';
+                        // Get start of this week (Sunday)
+                        const startOfWeek = new Date(now);
+                        startOfWeek.setDate(now.getDate() - now.getDay());
+                        startOfWeek.setHours(0, 0, 0, 0);
+                        // Get end of next week (Saturday)
+                        const endOfNextWeek = new Date(startOfWeek);
+                        endOfNextWeek.setDate(startOfWeek.getDate() + 13); // 7 days this week + 6 days next week
+                        endOfNextWeek.setHours(23, 59, 59, 999);
+                        timeMin = startOfWeek.toISOString();
+                        timeMax = endOfNextWeek.toISOString();
+                    }
+
+                    // List events (limit to 100 for performance)
+                    const listParams = {
+                        calendarId: env.GOOGLE_CALENDAR_ID,
+                        maxResults: 100,
+                        singleEvents: true,
+                        orderBy: 'startTime',
+                        timeMin,
+                        timeMax
+                    };
+                    console.log("List params:", listParams);
+                    const response = await calendar.events.list(listParams);
+                    const items = response.data.items || [];
+                    console.log("Items:", items);
+
+                    // Find the first event whose summary matches the query (case-insensitive, partial)
+                    const match = items.find(e =>
+                        e.summary && e.summary.toLowerCase().includes(query.toLowerCase())
+                    );
+                    console.log("Match:", match);
+
+                    if (!match) {
+                        return {
+                            content: [
+                                {
+                                    type: "text",
+                                    text: `❌ No event found matching \"${query}\"${date ? ` on ${date}` : ''}`
+                                }
+                            ]
+                        };
+                    }
+
+                    await calendar.events.delete({
+                        calendarId: env.GOOGLE_CALENDAR_ID,
+                        eventId: match.id!,
+                    });
+
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: `✅ Deleted event: \"${match.summary}\"${match.start?.dateTime ? ` at ${match.start.dateTime}` : ''}`
+                            }
+                        ]
+                    };
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
                     return {
-                        content: [{ type: "text" as const, text: `❌ Error creating calendar event: ${errorMessage}` }]
+                        content: [{ type: "text" as const, text: `❌ Error removing calendar event: ${errorMessage}` }]
                     };
                 }
             }
         );
-    }
-}
+        this.server.tool(
+            "update_calendar_event",
+            "Update an existing calendar event by event name/summary and optional date. You can change the title, date, time, or location. Only updates provided fields.",
+            {
+                query: z.string().describe("Event name or summary to search for (required)"),
+                date: z.string().optional().describe("Date of the event in YYYY-MM-DD format (optional)"),
+                newTitle: z.string().optional().describe("New title for the event (optional)"),
+                newDate: z.string().optional().describe("New date in YYYY-MM-DD format (optional)"),
+                newTime: z.string().optional().describe("New time in HH:MM format (24-hour, optional)"),
+                newLocation: z.string().optional().describe("New location for the event (optional)")
+            },
+            async ({ query, date, newTitle, newDate, newTime, newLocation }) => {
+                try {
+                    const env = getEnv<Env>();
+                    const { GoogleAuth } = await import('google-auth-library');
+                    const { google } = await import('googleapis');
+
+                    let privateKey = env.GOOGLE_PRIVATE_KEY;
+                    if (privateKey.includes('\\n')) {
+                        privateKey = privateKey.replace(/\\n/g, '\n');
+                    }
+                    if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+                        privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
+                    }
+
+                    const auth = new GoogleAuth({
+                        credentials: {
+                            client_email: env.GOOGLE_CLIENT_EMAIL,
+                            private_key: privateKey
+                        },
+                        scopes: ['https://www.googleapis.com/auth/calendar'],
+                    });
+
+                    const calendar = google.calendar({ version: 'v3', auth });
+
+                    // Calculate timeMin/timeMax
+                    let timeMin, timeMax;
+                    if (date) {
+                        const d = new Date(`${date}T00:00:00-07:00`); // PDT
+                        timeMin = new Date(d).toISOString();
+                        const endOfDay = new Date(d);
+                        endOfDay.setHours(23, 59, 59, 999);
+                        timeMax = endOfDay.toISOString();
+                    } else {
+                        const now = new Date();
+                        const startOfWeek = new Date(now);
+                        startOfWeek.setDate(now.getDate() - now.getDay());
+                        startOfWeek.setHours(0, 0, 0, 0);
+                        const endOfNextWeek = new Date(startOfWeek);
+                        endOfNextWeek.setDate(startOfWeek.getDate() + 13);
+                        endOfNextWeek.setHours(23, 59, 59, 999);
+                        timeMin = startOfWeek.toISOString();
+                        timeMax = endOfNextWeek.toISOString();
+                    }
+
+                    // List events (limit to 100 for performance)
+                    const listParams = {
+                        calendarId: env.GOOGLE_CALENDAR_ID,
+                        maxResults: 100,
+                        singleEvents: true,
+                        orderBy: 'startTime',
+                        timeMin,
+                        timeMax
+                    };
+                    const response = await calendar.events.list(listParams);
+                    const items = response.data.items || [];
+
+                    // Find the first event whose summary matches the query (case-insensitive, partial)
+                    const match = items.find(e =>
+                        e.summary && e.summary.toLowerCase().includes(query.toLowerCase())
+                    );
+
+                    if (!match) {
+                        return {
+                            content: [
+                                {
+                                    type: "text",
+                                    text: `❌ No event found matching \"${query}\"${date ? ` on ${date}` : ''}`
+                                }
+                            ]
+                        };
+                    }
+
+                    // Prepare updated fields
+                    const updatedEvent: any = {};
+                    if (newTitle) updatedEvent.summary = newTitle;
+                    let startDateTime = match.start?.dateTime || match.start?.date;
+                    let endDateTime = match.end?.dateTime || match.end?.date;
+                    let timeZone = match.start?.timeZone || 'America/Los_Angeles';
+
+                    // If new date or time, update start/end
+                    if (newDate || newTime) {
+                        // Use existing date/time if not provided
+                        let dateStr = newDate ? newDate : (typeof startDateTime === 'string' ? startDateTime.substring(0,10) : '1970-01-01');
+                        let [year, month, day] = dateStr.split('-').map(Number);
+                        let [hours, minutes] = [0, 0];
+                        if (newTime) {
+                            [hours, minutes] = newTime.split(':').map(Number);
+                        } else if (typeof startDateTime === 'string' && startDateTime.length > 10) {
+                            // If original event has time
+                            const d = new Date(startDateTime);
+                            hours = d.getHours();
+                            minutes = d.getMinutes();
+                        }
+                        const start = new Date(year, month - 1, day, hours, minutes);
+                        const end = new Date(start.getTime() + 60 * 60 * 1000); // Default 1 hour duration
+                        updatedEvent.start = { dateTime: start.toISOString(), timeZone };
+                        updatedEvent.end = { dateTime: end.toISOString(), timeZone };
+                    }
+                    if (newLocation) updatedEvent.location = newLocation;
+
+                    // Update the event
+                    await calendar.events.patch({
+                        calendarId: env.GOOGLE_CALENDAR_ID,
+                        eventId: match.id!,
+                        requestBody: updatedEvent
+                    });
+
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: `✅ Updated event: \"${match.summary}\"${newTitle ? ` to \"${newTitle}\"` : ''}${newDate || newTime ? ` with new date/time` : ''}${newLocation ? ` at ${newLocation}` : ''}`
+                            }
+                        ]
+                    };
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    return {
+                        content: [{ type: "text" as const, text: `❌ Error updating calendar event: ${errorMessage}` }]
+                    };
+                }
+            }
+        );
+	}
+  }
 
 export default {
-    fetch(request: Request, env: Env, ctx: ExecutionContext) {
-        const url = new URL(request.url);
+	fetch(request: Request, env: Env, ctx: ExecutionContext) {
+		const url = new URL(request.url);
 
-        if (url.pathname === "/sse" || url.pathname === "/sse/message") {
-            // @ts-ignore
-            return MyMCP.serveSSE("/sse").fetch(request, env, ctx);
-        }
+		if (url.pathname === "/sse" || url.pathname === "/sse/message") {
+			// @ts-ignore
+			return MyMCP.serveSSE("/sse").fetch(request, env, ctx);
+		}
 
-        if (url.pathname === "/mcp") {
-            // @ts-ignore
-            return MyMCP.serve("/mcp").fetch(request, env, ctx);
-        }
+		if (url.pathname === "/mcp") {
+			// @ts-ignore
+			return MyMCP.serve("/mcp").fetch(request, env, ctx);
+		}
 
-        return new Response("Not found", { status: 404 });
-    },
+		return new Response("Not found", { status: 404 });
+	},
 };
