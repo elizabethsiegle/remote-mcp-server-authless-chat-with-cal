@@ -1,0 +1,24 @@
+# SF AI Agent HackNight with MCP ft. Codename Goose & Anthropic, Cloudflare, Stytch, and Supabase
+
+- [] 🤔 You think you know Cloudflare? ☁️🔥
+- [x] ⁉ Did you know you can build things on that global🌎, secure network?
+  - [x] 🧰 There's an entire Cloudflare☁️🔥 Developer👩🏻‍💻 Stack🥞
+    - [x] Compute, Storage📀, Media🌠, AI🤖
+- [x] 👋 MCP
+    - [ ] deploy button?! 
+    - [ ] GitHub 👩🏻‍💻🐙🐱
+    - [ ] Why use MCP for calendar automation?
+        - [ ] LLM🧠 -> cal assistant
+        - [ ] Controlled tool🛠️ usage
+- [ ] Time to get personal: GCal 
+    - [ ] Shared🤝 cals
+    - [ ] Service account auth🔐
+- [ ] Tools
+  - [ ] Query and summarize GCal events 
+  - [ ] Create, update, and remove events
+- [ ] Architecture & Flow🌊
+  - [ ] End-to-end request flow (User → MCP → AI → GCal -> response)
+- [ ] Real-World Use Cases
+  - [ ] Personal productivity🎧
+  - [ ] Team scheduling📆
+  - [ ] Automating workflows with calendar📅 data📈

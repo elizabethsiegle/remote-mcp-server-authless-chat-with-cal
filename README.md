@@ -35,9 +35,9 @@ GOOGLE_PRIVATE_KEY="REPLACE-WITH-PRIVATE-KEY"
 
 We need to activate the [Google Calendar API](https://developers.google.com/calendar/api/guides/overview) for a Google Cloud project of our choice (ie Google Calendar API). Use an existing project or create a new one: At the top of the [Google Cloud Console dashboard](https://console.cloud.google.com/), click on the project selection and “New Project”, enter a name e.g. “chat-with-calendar-mcp" and click “Create”. Then, in the [Google API dashboard](https://console.developers.google.com/), click <em>Enable APIs and services</em>. Search for the Google Calendar API and click <em>Enable</em>.
 
-## Share your GCal w/ the Google Storage Account Email
-In your Google Calendar, click <em>settings</em>, then <em>Settings menu</em>, then under <em>Settings for my calendars</em> select the calendar you want to share. Click <em>+ Add people and groups</em> and type in your storage account email. Give them permission to "Make changes and manage sharing." 
-<img width="675" alt="Share GCal with Google Storage Email and give them read/write permissions" src="https://github.com/user-attachments/assets/3579725b-5d8f-42e9-9d1b-255dca6c9b4e" />
+## Share your GCal w/ the Google Service Account Email
+In your Google Calendar, click <em>settings</em>, then <em>Settings menu</em>, then under <em>Settings for my calendars</em> select the calendar you want to share. Click <em>+ Add people and groups</em> and type in your service account email. Give them permission to "Make changes and manage sharing." 
+<img width="675" alt="Share GCal with Google Service Email and give them read/write permissions" src="https://github.com/user-attachments/assets/3579725b-5d8f-42e9-9d1b-255dca6c9b4e" />
 
 
 
